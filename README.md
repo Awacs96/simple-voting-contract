@@ -16,6 +16,7 @@ As stated above, winner is the one candidate receiving over 50% of all valid, ca
 
 # Diagram
 
+```
  ------------------------------------
 |    Candidate first choice count    |
  ------------------------------------
@@ -42,6 +43,7 @@ As stated above, winner is the one candidate receiving over 50% of all valid, ca
         ---------------------
        |       WINNER        |           
         ---------------------
+```
 
 # Ambition and disclaimer
 
