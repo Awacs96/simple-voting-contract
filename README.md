@@ -4,8 +4,6 @@
 </p>
 
 
-# Simple Voting Contract
-
 This contract is supposed to simulate so-called "Instant-runnof voting" system. This voting system (used in several countries including the UK, the US and Australia) works on a principle of ranking individual candidates from 1 to the number of candidates participating.
 
 # Basic rules of the vote
