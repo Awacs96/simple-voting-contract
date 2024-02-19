@@ -1,4 +1,5 @@
-# Aussie voting contract
+# Aussie-style voting contract
+
 <p align="center">
     <img width="300" height="300" src="./img/vote-box.png">
 </p>
@@ -44,6 +45,10 @@ As stated above, winner is the one candidate receiving over 50% of all valid, ca
        |       WINNER        |           
         ---------------------
 ```
+
+# Limitations of the contract
+
+Due to slightly complicated system, I decided to set limit to the number of candidates to 6. 
 
 # Ambition and disclaimer
 
