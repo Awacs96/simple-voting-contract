@@ -1,66 +1,48 @@
-## Foundry
+# Aussie voting contract
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+![Vote box image](./img/vote-box.png)
 
-Foundry consists of:
+## Simple Voting Contract
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+This contract is supposet to simulate so-called "Instant-runnof voting" system. This voting system (used in several countries including the UK, the US and Australia) works on a principle of ranking individual candidates from 1 to the number of candidates participating.
 
-## Documentation
+# Basic rules of the vote
 
-https://book.getfoundry.sh/
+Any candidate that receives majority of the votes wins. Each voter has to mark at least its #1 preference (other places - co-called `alternative` votes can be left blank). The process of distributing the votes is described below. However, to win the vote, the candidate has to receive over 50% if the casted votes. That means that only one candidate emerges as victorious from this vote.
 
-## Usage
+# Process of counting the winner
 
-### Build
+As stated above, winner is the one candidate receiving over 50% of all valid, casted votes (1 voter = 1 vote, the amount of preferences on an individual ballot does not make any difference). First, each candidate is assigned the number of votes that listed them as #1. Based on this count, if one candidate reaches majority, it wins the vote. If not, the last candidate is eliminated and its votes are distributed based on the preferences of the ballots of the eliminated candidate. This process is repeated until one candidate receives over 50% of the votes or until only one candidate remains.
 
-```shell
-$ forge build
-```
+# Diagram
 
-### Test
+ ------------------------------------
+|    Candidate first choice count    |
+ ------------------------------------
+                  |
+                  |  <-----------------------------------|
+                  |                                      |
+                  V                                      |
+                 /  \                                    |
+                /    \                                   |
+               /      \                                  |
+              /  Does  \                                 |
+             /   one    \                                |
+            /  candidate \       NO        -------------------------------
+            \  have over / ------------ > |  Eliminate last place         |
+             \    50%   /                 |  candidate, distribute votes  |
+              \        /                   -------------------------------
+               \      /
+                \    /
+                 \  /
+                  |
+                  | YES
+                  |
+                  V
+        ---------------------
+       |       WINNER        |           
+        ---------------------
 
-```shell
-$ forge test
-```
+# Ambition and disclaimer
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Primary ambition is to show off ... honestly :D Just want to demonstrate my ability to work with Solidity as a coding language and also show some skills designing the contract, testing it and making it gas-efficient and secure. This does not mean the contract should be used on-chain! Never use copied code from the internet without auditing it!
