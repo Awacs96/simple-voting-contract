@@ -38,7 +38,7 @@ An additional feature that should be implemented as well is, when two parties ha
 
 # Limitations of the contract
 
-The contract is able to accomodate the natural limit, which would be 27 parties (that would mean 9 coalitions as they have on average lower threshold per party and should such situation occur, 9 coalitions may be accomodated given a precise voting). 
+The contract is able to accomodate the natural limit, which would be 27 parties (that would mean 9 coalitions as they have on average lower threshold per party and should such situation occur, 9 coalitions may be accomodated given a precise voting that would total up to 99% of all casted votes). 
 
 # Ambition and disclaimer
 
