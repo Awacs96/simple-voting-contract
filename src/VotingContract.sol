@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.19;
 
-/// @title This simple voting contract should allow users to create their own votes and allow users to cast votes for their candidates according to the Instant-runoff system
+/// @title TBD
 /// @author Inspired by the community, yours sincerely, Tom
-/// @notice Ability to register whitelisted candidates (by passing a legal threshold, not in conflict with laws, etc.)
+/// @notice TBD
 /// @dev TBD
 contract VotingContract {
 
@@ -13,40 +13,56 @@ contract VotingContract {
     // #############################
 
     error VotingContract__PartyNameAlreadyExists();
+    error VotingContract__OnlyPartyLeaderCanOfferCoalition();
 
     // #############################
     //        STATIC VARIABLES
     // #############################
 
     struct PoliticalParty {
-        bytes32 subjectName;
+        string subjectName;
         address partyLeader;
         bool inCoalition;
+        uint8 coalitionRequestsReceived;
     }
 
     struct Subject {
-        bytes32 subjectName;
-        PoliticalParty[] coalitionMembers;
+        string subjectName;
+        PoliticalParty[3] coalitionMembers;
         address subjectLeader;
     }
 
-    PoliticalParty[] s_politicalParties;
-    Subject[] s_eligibleSubjects;
+    PoliticalParty[] public s_politicalParties;
+    Subject[] public s_eligibleSubjects;
 
     uint256 internal s_electionNumber;
-    mapping(bytes32 => bool) s_partyNameExists;
+    mapping(bytes32 partyName => bool isTaken) s_partyNameExists;
+    mapping(address partyLeader=> PoliticalParty potentialPartner) s_leaderToParty;
+    mapping(address partyLeader => PoliticalParty[] requests) s_coalitionRequested;
 
     // #############################
     //            EVENTS
     // #############################
 
-    event PoliticalPartyRegistered(uint256 indexed electionNumber, bytes32 partyName, address partyLeader);
+    event PoliticalPartyRegistered(uint256 indexed electionNumber, string partyName, address partyLeader);
+
+    // #############################
+    //           MODIFIERS
+    // #############################
+
+    modifier onlyPartyLeaderCanOffer() {
+        if (s_leaderToParty[msg.sender].partyLeader == address(0)) {
+            revert VotingContract__OnlyPartyLeaderCanOfferCoalition();
+        }
+        _;
+    }
 
     // #############################
     //          FUNCTIONS
     // #############################
 
     // better-practice: require some deposit or somehow limit the possibility to register a party ... maybe even make it onlyOwner but that would then be labor-intensive to register all parties
+    // check na přetečení byte32
     function registerParty(string calldata _partyName) external {
         bytes32 partyNameHash = bytes32(keccak256(abi.encodePacked(_partyName)));
 
@@ -55,23 +71,25 @@ contract VotingContract {
         }
 
         s_partyNameExists[partyNameHash] = true;
-        PoliticalParty storage party = PoliticalParty({subjectName: _partyName, partyLeader: msg.sender, inCoalition: false});
+        PoliticalParty memory party = PoliticalParty({subjectName: _partyName, partyLeader: msg.sender, inCoalition: false, coalitionRequestsReceived: 0});
         s_politicalParties.push(party);
-        
+
         emit PoliticalPartyRegistered(s_electionNumber++, _partyName, msg.sender);
     }
 
-    function createCoalition() external {
-        // should require approval from all party owners
-    }
+    function offerCoalition(address _coalitionPartyLeader) external onlyPartyLeaderCanOffer {}
+
+    function acceptCoalition() external {}
 
     function dismissCoalition() external {
         // should require approval from all party owners
     }
 
-    function removeFromCoalition(PoliticalParty subject) external returns(bool) {
+    function removeFromCoalition(PoliticalParty calldata subject) external returns(bool) {
         // requires owners of all other parties
     }
+
+    function leaveCoalition() external {}
 
     function listRegisteredSubjects() external {}
 
@@ -82,6 +100,14 @@ contract VotingContract {
     function showSubjectInformation() external view returns(Subject memory) {}
 
     function _cleanUp() internal {}
+
+    // #############################
+    //     VIEW & PURE FUNCTIONS
+    // #############################
+
+    function getNumberOfRegisteredParties() public view returns(uint256) {
+        return s_politicalParties.length;
+    }
 
 
 
