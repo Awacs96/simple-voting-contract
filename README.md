@@ -11,9 +11,9 @@ This contract is supposed to simulate voting system as there is in Czechia. The 
 
 Quorum:
 <ol>
-    <li>single policital party: >= 5% of all casted votes</li>
-    <li>coalition of 2 political parties: >= 8% of all casted votes</li>
-    <li>coalition of 3 or more parties: >= 11% of all casted votes</li>
+    <li>## Single policital party: >= 5% of all casted votes</li>
+    <li>## Coalition of 2 political parties: >= 8% of all casted votes</li>
+    <li>## Coalition of 3 or more parties: >= 11% of all casted votes</li>
 </ol>
 
 Other parties are ineligible for a seat in the Chamber of Deputies of the Czech Parliament.
