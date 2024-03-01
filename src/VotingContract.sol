@@ -12,86 +12,98 @@ contract VotingContract {
     //            ERRORS
     // #############################
 
-    error VotingContract__CandidateNotWhitelisted();
-    error VotingContract__IsNotTheOwner();
+    error VotingContract__PartyNameAlreadyExists();
 
     // #############################
-    //           EVENTS
+    //        STATIC VARIABLES
     // #############################
 
-    event VotingStarted();
-    event CandidateRegistered(uint256 indexed candidateId, address candidateIdentifier);
+    struct PoliticalParty {
+        bytes32 subjectName;
+        address partyLeader;
+        bool inCoalition;
+    }
+
+    struct Subject {
+        bytes32 subjectName;
+        PoliticalParty[] coalitionMembers;
+        address subjectLeader;
+    }
+
+    PoliticalParty[] s_politicalParties;
+    Subject[] s_eligibleSubjects;
+
+    uint256 internal s_electionNumber;
+    mapping(bytes32 => bool) s_partyNameExists;
 
     // #############################
-    //           EVENTS
+    //            EVENTS
     // #############################
 
-    modifier onlyOwner() {
-        if (msg.sender != s_owner) {
-            revert VotingContract__IsNotTheOwner();
+    event PoliticalPartyRegistered(uint256 indexed electionNumber, bytes32 partyName, address partyLeader);
+
+    // #############################
+    //          FUNCTIONS
+    // #############################
+
+    // better-practice: require some deposit or somehow limit the possibility to register a party ... maybe even make it onlyOwner but that would then be labor-intensive to register all parties
+    function registerParty(string calldata _partyName) external {
+        bytes32 partyNameHash = bytes32(keccak256(abi.encodePacked(_partyName)));
+
+        if (s_partyNameExists[partyNameHash]) {
+            revert VotingContract__PartyNameAlreadyExists();
         }
-        _;
-    } 
 
-    // #############################
-    //      STATIC VARIABLES
-    // #############################
-
-    enum RegisteredParties {
-        LEFT,
-        RIGHT,
-        FAR_RIGHT,
-        FAR_LEFT,
-        CENTRIST
+        s_partyNameExists[partyNameHash] = true;
+        PoliticalParty storage party = PoliticalParty({subjectName: _partyName, partyLeader: msg.sender, inCoalition: false});
+        s_politicalParties.push(party);
+        
+        emit PoliticalPartyRegistered(s_electionNumber++, _partyName, msg.sender);
     }
 
-    struct Candidate {
-        bytes32 name;
-        RegisteredParties affiliation;
-        address identifier;
-        uint8 age;
-        uint8 number;
+    function createCoalition() external {
+        // should require approval from all party owners
     }
 
-    Candidate[] internal candidates;
-
-    uint8 public constant MAXIMUM_CANDIDATES = 6;
-    address private s_owner;
-
-    // #############################
-    //        FUNCTIONS
-    // #############################
-
-    constructor() {
-        s_owner = msg.sender;
+    function dismissCoalition() external {
+        // should require approval from all party owners
     }
 
-    // #############################
-    //       EXTERNAL FUNCTIONS
-    // #############################
-
-    /// @notice This function registeres a new candidate that is whitelisted, if the total number of candidates is not yet reached
-    /// @param candidateName a name of the candidate
-    /// @param candidateAffiliation political possition of the candidate
-    /// @param candidateId address of the candidate address
-    /// @param candidateAge age of the candidate
-    function registerCandidate(bytes32 candidateName, RegisteredParties candidateAffiliation, address candidateId, uint8 candidateAge) external returns (uint8 candidateNumber) {
-        // Cannot register if the maximum number of candidates way reached
-        // Cannot register with incorrect political affiliation
-        // Cannot register if the age is below 18
-
+    function removeFromCoalition(PoliticalParty subject) external returns(bool) {
+        // requires owners of all other parties
     }
 
-    function castVote() external {}
+    function listRegisteredSubjects() external {}
 
-    function openVoting() external {}
+    function startElection() external {}
 
-    function remainingTime() external returns (uint256) {}
+    function showResults() external {}
 
-    function closeRegistration() external {}
+    function showSubjectInformation() external view returns(Subject memory) {}
 
-    function getResults() external {}
+    function _cleanUp() internal {}
 
-    function _whitelistCandidate() internal {}
+
+
+// Layout of Contract:
+// version
+// imports
+// interfaces, libraries, contracts
+// errors
+// Type declarations
+// State variables
+// Events
+// Modifiers
+// Functions
+
+// Layout of Functions:
+// constructor
+// receive function (if exists)
+// fallback function (if exists)
+// external
+// public
+// internal
+// private
+// view & pure functions
 
 }
