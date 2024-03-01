@@ -1,13 +1,22 @@
-# Aussie-style voting contract
+# Czech-style voting contract
 
 <p align="center">
     <img width="300" height="300" src="./img/vote-box.png">
 </p>
 
 
-This contract is supposed to simulate so-called "Instant-runnof voting" system. This voting system (used in several countries including the UK, the US and Australia) works on a principle of ranking individual candidates from 1 to the number of candidates participating.
+This contract is supposed to simulate voting system as there is in Czechia. The system considers political parties (and potentially groups of parties called coalitions), that compete for the largest possible share of casted votes. The difference between a party and a coalition is the minimun threshold coalition has to cross. 
 
 # Basic rules of the vote
+
+Quorum:
+<ol>
+    <li>single policital party: >= 5% of all casted votes</li>
+    <li>coalition of 2 political parties: >= 8% of all casted votes</li>
+    <li>coalition of 3 or more parties: >= 11% of all casted votes</li>
+</ol>
+
+Other parties are ineligible for a seat in the Chamber of Deputies of the Czech Parliament.
 
 Any candidate that receives majority of the votes wins. Each voter has to mark at least its #1 preference (other places - co-called `alternative` votes can be left blank). The process of distributing the votes is described below. However, to win the vote, the candidate has to receive over 50% if the casted votes. That means that only one candidate emerges as victorious from this vote.
 
