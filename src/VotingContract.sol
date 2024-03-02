@@ -14,6 +14,8 @@ contract VotingContract {
 
     error VotingContract__PartyNameAlreadyExists();
     error VotingContract__OnlyPartyLeaderCanOfferCoalition();
+    error VotingContract__CoalitionAlreadyRequested();
+    error VotingContract_AlreadyInCoalition();
 
     // #############################
     //        STATIC VARIABLES
@@ -28,7 +30,7 @@ contract VotingContract {
 
     struct Subject {
         string subjectName;
-        PoliticalParty[3] coalitionMembers;
+        string[3] coalitionMembers;
         address subjectLeader;
     }
 
@@ -36,9 +38,11 @@ contract VotingContract {
     Subject[] public s_eligibleSubjects;
 
     uint256 internal s_electionNumber;
+    uint256 internal s_registrationNumber;
     mapping(bytes32 partyName => bool isTaken) s_partyNameExists;
     mapping(address partyLeader=> PoliticalParty potentialPartner) s_leaderToParty;
-    mapping(address partyLeader => PoliticalParty[] requests) s_coalitionRequested;
+    mapping(address requestor => mapping(address requestee => bool wasRequested)) s_coalitionRequested;
+    mapping(address partyLeader => mapping(address otherPartyLeader => bool isInCoalition)) s_inCoalition;
 
     // #############################
     //            EVENTS
@@ -50,10 +54,28 @@ contract VotingContract {
     //           MODIFIERS
     // #############################
 
-    modifier onlyPartyLeaderCanOffer() {
+    modifier onlyPartyLeaderCanOfferCoalition() {
         if (s_leaderToParty[msg.sender].partyLeader == address(0)) {
             revert VotingContract__OnlyPartyLeaderCanOfferCoalition();
         }
+        _;
+    }
+
+    modifier coalitionNotYetRequested(address _coalitionLeader) {
+        if (s_coalitionRequested[msg.sender][_coalitionLeader]) {
+            revert VotingContract__CoalitionAlreadyRequested();
+        }
+        _;
+    }
+
+    modifier notACoalitionMember(address _coalitionLeader) {
+        if (s_inCoalition[msg.sender][_coalitionLeader]) {
+            revert VotingContract_AlreadyInCoalition();
+        }
+        _;
+    }
+
+    modifier partyExists() {
         _;
     }
 
@@ -74,10 +96,13 @@ contract VotingContract {
         PoliticalParty memory party = PoliticalParty({subjectName: _partyName, partyLeader: msg.sender, inCoalition: false, coalitionRequestsReceived: 0});
         s_politicalParties.push(party);
 
-        emit PoliticalPartyRegistered(s_electionNumber++, _partyName, msg.sender);
+        emit PoliticalPartyRegistered(s_registrationNumber++, _partyName, msg.sender);
     }
 
-    function offerCoalition(address _coalitionPartyLeader) external onlyPartyLeaderCanOffer {}
+    // Možná udělat vytváření koalic ne podle adresy předsedy ale jména? Bude to víc gas-náročné thou
+    function offerCoalition(address _coalitionPartyLeader) external onlyPartyLeaderCanOfferCoalition coalitionNotYetRequested(_coalitionPartyLeader) notACoalitionMember(_coalitionPartyLeader) {
+        // s_coalitionRequested[]
+    }
 
     function acceptCoalition() external {}
 
@@ -91,13 +116,9 @@ contract VotingContract {
 
     function leaveCoalition() external {}
 
-    function listRegisteredSubjects() external {}
-
     function startElection() external {}
 
     function showResults() external {}
-
-    function showSubjectInformation() external view returns(Subject memory) {}
 
     function _cleanUp() internal {}
 
@@ -107,6 +128,18 @@ contract VotingContract {
 
     function getNumberOfRegisteredParties() public view returns(uint256) {
         return s_politicalParties.length;
+    }
+
+    function listRegisteredSubjects() public view returns(Subject[] memory) {
+        return s_eligibleSubjects;
+    }
+
+    function showPoliticalPartyInformation(uint256 registrationNumber) public view returns(PoliticalParty memory) {
+        return s_politicalParties[registrationNumber];
+    }
+
+    function showSubjecInformation(uint256 electionNumber) public view returns(Subject memory) {
+        return s_eligibleSubjects[electionNumber];
     }
 
 
