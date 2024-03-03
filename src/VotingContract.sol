@@ -15,7 +15,7 @@ contract VotingContract {
     error VotingContract__VotingPhaseAlreadyStarted();
     error VotingContract__PartyNameAlreadyExists();
     error VotingContract__PartyNameDoesNotExist();
-    error VotingContract__OnlyPartyLeaderCanOfferCoalition();
+    error VotingContract__OnlyPartyLeader();
     error VotingContract__CoalitionAlreadyRequested();
     error VotingContract__AlreadyInCoalition();
     error VotingContract__CoalitionBetweenThesePartiesHasBeenAlreadyRequested();
@@ -64,15 +64,11 @@ contract VotingContract {
     //           MODIFIERS
     // #############################
 
-    modifier onlyPartyLeaderCanOfferCoalition() {
+    modifier onlyPartyLeader() {
         if (s_leaderToParty[msg.sender].partyLeader == address(0)) {
-            revert VotingContract__OnlyPartyLeaderCanOfferCoalition();
+            revert VotingContract__OnlyPartyLeader();
         }
         _;
-    }
-
-    modifier onlyPartyLeader() {
-        if (s_leaderToParty[msg.sender] !=)
     }
 
     modifier coalitionNotYetRequested(string calldata _coalitionPartyName) {
@@ -121,25 +117,21 @@ contract VotingContract {
         s_partyNameExists[_partyName] = true;
         PoliticalParty memory party = PoliticalParty({subjectName: _partyName, partyLeader: msg.sender, inCoalition: false, coalitionRequestsSent: 0});
         s_politicalParties[s_registrationNumber] = party;
+        s_leaderToParty[msg.sender] = party;
 
         emit PoliticalPartyRegistered(s_registrationNumber++, _partyName, msg.sender);
     }
 
-    // Možná udělat vytváření koalic ne podle adresy předsedy ale jména? Bude to víc gas-náročné thou
-    function offerCoalition(string calldata _coalitionPartyName) external votingIsClosed coalitionNotYetRequested(_coalitionPartyName) {
+    function offerCoalition(string calldata _coalitionPartyName) external votingIsClosed coalitionNotYetRequested(_coalitionPartyName) onlyPartyLeader {
         if (!partyExists(_coalitionPartyName)) {
             revert VotingContract__PartyNameDoesNotExist();
         }
-        // msg.sender is the leader of the party
-        // there is no request already
         // coalitionRequests is maximum 3
-        // voting not started (MDF-1)
     }
 
     function withdrawCoalitionOffer(string calldata _coalitionPartyName) external votingIsClosed {
         // reuqest exists (MDF-2)
         // msg.sender is party leader
-        // voting not started (MDF-1)
     }
 
     function acceptCoalition(string calldata _coalitionPartyName) external votingIsClosed {
@@ -147,26 +139,22 @@ contract VotingContract {
         // request is valid
         // can be accepted only by party leader
         // did not exceed the maximum of coalition members
-        // 
-        // voting not started (MDF-1)
     }
 
     function dismissCoalition() external votingIsClosed {
         // should require approval from all party owners
-        // voting not started (MDF-1)
     }
 
     function removeFromCoalition(string calldata _coalitionPartyName) external votingIsClosed returns(bool) {
         // requires owners of all other parties
-        // voting not started (MDF-1)
     }
 
-    function leaveCoalition() external votingIsClosed {
-        // voting not started (MDF-1)
+    function leaveCoalition() external votingIsClosed {}
 
+    function startElection() external {
+        votingPhase = true;
+        _setupElection();
     }
-
-    function startElection() external {}
 
     function showVotingResults() external {}
 
