@@ -38,7 +38,7 @@ An additional feature that should be implemented as well is, when two parties ha
 
 # Limitations of the contract
 
-For simplicity and also to lower the risk of coalitions to break after the election (and also keep this sensible), the maximum of 3 coalition partners, therefore a coalition of max. 4 parties is currently used.
+For simplicity and also to lower the risk of coalitions to break after the election (and also keep this sensible), the maximum of 3 coalition partners, therefore a coalition of max. 4 parties is currently used. This contract is also for now a single-use -> the primary aim at the moment is to have a stable implementation fo the process. Reuseability of the contract will be addressed later but now I want to focus on the functionality.
 
 # Ambition and disclaimer
 
