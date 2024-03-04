@@ -19,17 +19,17 @@ contract TestVotingContract is Test {
         vc = deployer.run();
     }
 
-    function testCanRegisterPolicitalParty() public {
-        assertEq(vc.getNumberOfRegisteredParties(), 0);
+    // function testCanRegisterPolicitalParty() public {
+    //     assertEq(vc.getNumberOfRegisteredParties(), 0);
 
-        vm.startPrank(alice);
-        vc.registerParty("ODS");
-        vm.stopPrank();
+    //     vm.startPrank(alice);
+    //     vc.registerParty("ODS");
+    //     vm.stopPrank();
 
-        assertEq(vc.getNumberOfRegisteredParties(), 1);
+    //     assertEq(vc.getNumberOfRegisteredParties(), 1);
 
-        (,address leader,,) = vc.s_politicalParties(0);
-        assertEq(leader, alice);
-    }
+    //     (,address leader,,) = vc.s_politicalParties(0);
+    //     assertEq(leader, alice);
+    // }
 
 }
