@@ -12,149 +12,84 @@ contract VotingContract {
     //            ERRORS
     // #############################
 
-    error VotingContract__VotingPhaseAlreadyStarted();
-    error VotingContract__PartyNameAlreadyExists();
-    error VotingContract__PartyNameDoesNotExist();
-    error VotingContract__OnlyPartyLeader();
-    error VotingContract__CoalitionAlreadyRequested();
-    error VotingContract__AlreadyInCoalition();
-    error VotingContract__CoalitionBetweenThesePartiesHasBeenAlreadyRequested();
-    error VotingContract__MaximumPartyCapacityReached();
+    error VotingContract__PartyNameIsAlreadyTaken();
 
     // #############################
     //        STATIC VARIABLES
     // #############################
 
     struct PoliticalParty {
-        string subjectName;
-        address partyLeader;
-        bool inCoalition;
-        uint8 coalitionRequestsSent;
-    }
-
-    struct Subject {
-        string subjectName;
-        string[3] coalitionMembers;
-        address subjectLeader;
-        bool isCoalition;
+        string partyName;
         uint256 votes;
+        uint256 electionNumber;
+        address partyLeader;
+        string[3] coalitionPartners;
+        bool isInCoalition;
+        mapping(address => bool) coalitionRequests;
     }
 
-    uint256 public constant MAXIMUM_COALITION_REQUESTS = 5;
-    uint256 public constant MAXIMUM_PARTIES_TO_REGISTER = 50;
-    uint256 internal s_registrationNumber;
-    uint256 internal s_electionNumber;
-    bool public votingPhase;
-    mapping(string partyName => bool isTaken) s_partyNameExists;
-    mapping(string partyName => address partyLeader) s_partyNameToLeader;
-    mapping(address partyLeader => PoliticalParty party) s_leaderToParty;
-    mapping(address requestor => mapping(address requestee => bool wasRequested)) s_coalitionRequestExists;
-    mapping(address partyLeader => mapping(address otherPartyLeader => bool isInCoalition)) s_inCoalition;
+    uint256 public s_electionNumber;
+    mapping(bytes32 partyNameHash => bool isTaken) s_partyNameIsTaken;
+    mapping(address partyLeader => PoliticalParty) s_leaderToParty;
 
-    PoliticalParty[MAXIMUM_PARTIES_TO_REGISTER] public s_politicalParties;
-    Subject[] public s_eligibleSubjects;
+    PoliticalParty[] public s_politicalParties;
 
     // #############################
     //            EVENTS
     // #############################
 
-    event PoliticalPartyRegistered(uint256 indexed electionNumber, string partyName, address partyLeader);
+    event PoliticalPartyRegistered(uint256 indexed electionNumber, address indexed partyLeader, string partyName);
 
     // #############################
     //           MODIFIERS
     // #############################
 
-    modifier onlyPartyLeader() {
-        if (s_leaderToParty[msg.sender].partyLeader == address(0)) {
-            revert VotingContract__OnlyPartyLeader();
-        }
-        _;
-    }
-
-    modifier coalitionNotYetRequested(string calldata _coalitionPartyName) {
-        address coalitionPartyLeader = s_partyNameToLeader[_coalitionPartyName];
-        if (s_coalitionRequestExists[msg.sender][coalitionPartyLeader] || s_coalitionRequestExists[coalitionPartyLeader][msg.sender]) {
-            revert VotingContract__CoalitionBetweenThesePartiesHasBeenAlreadyRequested();
-        }
-        _;
-    }
-
-    modifier notACoalitionMember(address _coalitionLeader) {
-        if (s_inCoalition[msg.sender][_coalitionLeader]) {
-            revert VotingContract__AlreadyInCoalition();
-        }
-        _;
-    }
-
-    modifier votingIsClosed() {
-        if (votingPhase) {
-            revert VotingContract__VotingPhaseAlreadyStarted();
-        }
-        _;
-    }
-
-    modifier partyNumberDoesNotExceedCapacity() {
-        if (s_registrationNumber >= 50) {
-            revert VotingContract__MaximumPartyCapacityReached();
-        }
-        _;
-    }
-
     // #############################
     //          FUNCTIONS
     // #############################
 
-    // better-practice: require some deposit or somehow limit the possibility to register a party ... maybe even make it onlyOwner but that would then be labor-intensive to register all parties
-    // check na přetečení byte32
-    /// @notice Function registers a new party, checks that the party name does not yet exist and creates the PoliticalParty in storage, this function also takes the msg.sender as the partyLeader
-    /// @dev Reuqested implementation of checks so that this function cannot be smapped
-    /// @param _partyName a string parameter of the party name
-    function registerParty(string calldata _partyName) external partyNumberDoesNotExceedCapacity {
-        if (partyExists(_partyName)) {
-            revert VotingContract__PartyNameAlreadyExists();
+    function registerParty(string calldata _partyName) external {
+        bytes32 nameHash = bytes32(keccak256(abi.encodePacked(_partyName)));
+        if (s_partyNameIsTaken[nameHash]) {
+            revert VotingContract__PartyNameIsAlreadyTaken();
         }
 
-        s_partyNameExists[_partyName] = true;
-        PoliticalParty memory party = PoliticalParty({subjectName: _partyName, partyLeader: msg.sender, inCoalition: false, coalitionRequestsSent: 0});
-        s_politicalParties[s_registrationNumber] = party;
+        s_partyNameIsTaken[nameHash] = true;
+        s_electionNumber++;
+        PoliticalParty memory party = PoliticalParty({partyName: _partyName, votes: 0, electionNumber: s_electionNumber, partyLeader: msg.sender, isInCoalition: false});
+        s_politicalParties.push(party);
         s_leaderToParty[msg.sender] = party;
 
-        emit PoliticalPartyRegistered(s_registrationNumber++, _partyName, msg.sender);
+        emit PoliticalPartyRegistered(electionNumber, partyLeader, partyName);
     }
 
-    function offerCoalition(string calldata _coalitionPartyName) external votingIsClosed coalitionNotYetRequested(_coalitionPartyName) onlyPartyLeader {
-        if (!partyExists(_coalitionPartyName)) {
-            revert VotingContract__PartyNameDoesNotExist();
-        }
-        // coalitionRequests is maximum 3
+    function offerCoalition(string calldata _coalitionPartyName) external {
+        
     }
 
-    function withdrawCoalitionOffer(string calldata _coalitionPartyName) external votingIsClosed {
+    function withdrawCoalitionOffer(string calldata _coalitionPartyName) external {
         // reuqest exists (MDF-2)
         // msg.sender is party leader
     }
 
-    function acceptCoalition(string calldata _coalitionPartyName) external votingIsClosed {
+    function acceptCoalition(string calldata _coalitionPartyName) external {
         // request exists (MDF-2)
         // request is valid
         // can be accepted only by party leader
         // did not exceed the maximum of coalition members
     }
 
-    function dismissCoalition() external votingIsClosed {
+    function dismissCoalition() external {
         // should require approval from all party owners
     }
 
-    function removeFromCoalition(string calldata _coalitionPartyName) external votingIsClosed returns(bool) {
+    function removeFromCoalition(string calldata _coalitionPartyName) external returns(bool) {
         // requires owners of all other parties
     }
 
-    function leaveCoalition() external votingIsClosed {}
+    function leaveCoalition() external {}
 
-    function startElection() external {
-        votingPhase = true;
-        _setupElection();
-    }
+    function startElection() external {}
 
     function showVotingResults() external {}
 
@@ -162,14 +97,7 @@ contract VotingContract {
     //      INTERNAL FUNCTIONS
     // #############################
 
-    function partyExists(string memory _partyName) internal returns(bool) {
-        bytes32 partyNameHash = bytes32(keccak256(abi.encodePacked(_partyName)));
-
-        if (s_partyNameExists[partyNameHash]) {
-            return true;
-        }
-        return false;
-    }
+    function partyExists(string memory _partyName) internal returns(bool) {}
 
     function _setupElection() internal {}
 
@@ -182,19 +110,15 @@ contract VotingContract {
     // #############################
 
     function getNumberOfRegisteredParties() public view returns(uint256) {
-        return s_politicalParties.length;
     }
 
     function listRegisteredSubjects() public view returns(Subject[] memory) {
-        return s_eligibleSubjects;
     }
 
     function showPoliticalPartyInformation(uint256 registrationNumber) public view returns(PoliticalParty memory) {
-        return s_politicalParties[registrationNumber];
     }
 
     function showSubjecInformation(uint256 electionNumber) public view returns(Subject memory) {
-        return s_eligibleSubjects[electionNumber];
     }
 
 
