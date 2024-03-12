@@ -13,6 +13,7 @@ contract VotingContract {
     // #############################
 
     error VotingContract__NameIsAlreadyTaken();
+    error VotingContract__CoalitionNameIsAlreadyTaken();
     error VotingContract__SenderIsNotAPartyChair();
     error VotingContract__PartyDoesNotExist();
     error VotingContract__MaximumPartiesHasBeenReached();
@@ -21,12 +22,14 @@ contract VotingContract {
     error VotingContract__VotingAlreadyStarted();
     error VotingContract__ColitionWasNotRequested();
     error VotingContract__CoalitionRequestDoesNotExist();
+    error VotingContract__PartyReachedMaximumPartners(string);
 
     // #############################
     //        STATIC VARIABLES
     // #############################
 
     uint8 public immutable MAXIMUM_PARTIES_TO_REGISTER = 50;
+    uint8 public immutable MAXIMUM_COALITION_PARTNERS = 3;
 
     struct Party {
         uint8 registrationNumber;
@@ -44,15 +47,21 @@ contract VotingContract {
         uint8 threshold;
     }
 
+    enum VotingPhase {
+        REGISTRATION,
+        VOTING,
+        RESULTS
+    }
+
     Party[] s_registeredParties;
     Subject[] s_registeredSubjects;
 
     uint8 internal s_registrationNumber;
-    bool public s_votingPhase;
+    VotingPhase public s_votingPhase;
 
     mapping(address chairPerson => Party) public s_chairToParty;
     mapping(bytes32 nameHash => Party) public s_hashToParty;
-    mapping(uint8 index => Party) public s_registrationNumberToParty;
+    // mapping(uint8 index => Party) public s_registrationNumberToParty;
     mapping(bytes32 party1Hash => mapping(bytes32 party2Hash => bool)) public s_coalitionRequests;
 
     // #############################
@@ -62,6 +71,7 @@ contract VotingContract {
     event PartyRegistered(string indexed party, address indexed chair, uint indexed timestamp);
     event CoalitionRequested(string indexed offeringParty, string indexed requestedParty, uint indexed timestamp);
     event CoalitionRequestWithdrawn(string indexed offeringParty, string indexed requestedParty, uint indexed timestamp);
+    event CoalitionCreated(string indexed party1, string indexed party2, uint indexed timestamp);
 
     // #############################
     //           MODIFIERS
@@ -82,6 +92,10 @@ contract VotingContract {
             revert VotingContract__NameIsAlreadyTaken();
         }
 
+        if (s_votingPhase != VotingPhase.REGISTRATION) {
+            revert VotingContract__VotingAlreadyStarted();
+        }
+
         string[] memory emptyArray;
         Party memory party = Party({
             registrationNumber: s_registrationNumber,
@@ -90,7 +104,7 @@ contract VotingContract {
             partners: emptyArray
         });
         s_registeredParties.push(party);
-        s_registrationNumberToParty[s_registrationNumber] = party;
+        // s_registrationNumberToParty[s_registrationNumber] = party;
         s_registrationNumber++;
 
         emit PartyRegistered(partyName, msg.sender, block.timestamp);
@@ -116,7 +130,7 @@ contract VotingContract {
             revert VotingContract__CoalitionHasAlreadyBeenRequested();
         }
 
-        if (s_votingPhase) {
+        if (s_votingPhase != VotingPhase.REGISTRATION) {
             revert VotingContract__VotingAlreadyStarted();
         }
 
@@ -141,7 +155,7 @@ contract VotingContract {
             revert VotingContract__ColitionWasNotRequested();
         }
 
-        if (s_votingPhase) {
+        if (s_votingPhase != VotingPhase.REGISTRATION) {
             revert VotingContract__VotingAlreadyStarted();
         }
 
@@ -155,7 +169,7 @@ contract VotingContract {
             revert VotingContract__SenderIsNotAPartyChair();
         }
 
-        if (s_votingPhase) {
+        if (s_votingPhase != VotingPhase.REGISTRATION) {
             revert VotingContract__VotingAlreadyStarted();
         }
 
@@ -166,14 +180,36 @@ contract VotingContract {
             revert VotingContract__CoalitionRequestDoesNotExist();
         }
 
+        if (s_hashToParty[ownNameHash].partners.length >= MAXIMUM_COALITION_PARTNERS) {
+            revert VotingContract__PartyReachedMaximumPartners(ownPartyName);
+        }
 
+        if (s_hashToParty[partnerNameHash].partners.length >= MAXIMUM_COALITION_PARTNERS) {
+            revert VotingContract__PartyReachedMaximumPartners(coalitionPartyName);
+        }
+
+        uint8 ownRegNumber = s_chairToParty[msg.sender].registrationNumber;
+        uint8 partnerRegNumber = s_hashToParty[partnerNameHash].registrationNumber;
+
+        s_registeredParties[ownRegNumber].partners[s_registeredParties[ownRegNumber].partners.length] = coalitionPartyName;
+        s_registeredParties[partnerRegNumber].partners[s_registeredParties[partnerRegNumber].partners.length] = ownPartyName;
+
+        emit CoalitionCreated(ownPartyName, coalitionPartyName, block.timestamp);
     }
 
     function dismissCoalition() external {}
 
     function removeFromCoalition(string calldata _coalitionPartyName) external returns(bool) {}
 
-    function leaveCoalition() external {}
+    function leaveCoalition() external {
+        if (s_chairToParty[msg.sender].chairPerson == address(0)) {
+            revert VotingContract__SenderIsNotAPartyChair();
+        }
+
+        if (s_votingPhase != VotingPhase.REGISTRATION) {
+            revert VotingContract__VotingAlreadyStarted();
+        }
+    }
 
     function startElection() external {}
 
@@ -183,7 +219,7 @@ contract VotingContract {
     //      INTERNAL FUNCTIONS
     // #############################
 
-    function partyExists(string memory _partyName) internal returns(bool) {}
+    function partyExists(string calldata _partyName) internal returns(bool) {}
 
     function _setupElection() internal {}
 
