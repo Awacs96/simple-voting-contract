@@ -1,4 +1,4 @@
-# Czech-style voting contract
+# Czech-style voting contract - still very WiP!
 
 <p align="center">
     <img width="300" height="300" src="./img/vote-box.png">
