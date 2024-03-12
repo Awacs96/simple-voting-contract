@@ -12,42 +12,56 @@ contract VotingContract {
     //            ERRORS
     // #############################
 
-    error VotingContract__PartyNameIsAlreadyTaken();
+    error VotingContract__NameIsAlreadyTaken();
+    error VotingContract__SenderIsNotAPartyChair();
     error VotingContract__PartyDoesNotExist();
-    error VotingContract__CoalitionRequestAlreadyExists();
-    error VotingContract__CannotCreateCoalitionWithOwnParty();
-    error VotingContract__ReuqestDoesNotExist();
+    error VotingContract__MaximumPartiesHasBeenReached();
+    error VotingContract__CannotCreateCoalitionWithItself();
+    error VotingContract__CoalitionHasAlreadyBeenRequested();
+    error VotingContract__VotingAlreadyStarted();
+    error VotingContract__ColitionWasNotRequested();
+    error VotingContract__CoalitionRequestDoesNotExist();
 
     // #############################
     //        STATIC VARIABLES
     // #############################
 
-    struct PoliticalParty {
+    uint8 public immutable MAXIMUM_PARTIES_TO_REGISTER = 50;
+
+    struct Party {
+        uint8 registrationNumber;
+        address chairPerson;
         string partyName;
-        uint256 votes;
-        uint256 electionNumber;
-        uint256 numberOfPartners;
-        address partyLeader;
-        string[3] coalitionPartners;
-        bool isInCoalition;
+        string[] partners;
     }
 
-    uint256 public s_electionNumber;
-    mapping(bytes32 partyNameHash => bool isTaken) s_partyNameIsTaken;
-    mapping(address partyLeader => PoliticalParty party) s_leaderToParty;
-    mapping(string partyName => PoliticalParty party) s_nameToParty;
-    mapping(address reuqestor => mapping(address requestee => bool isRequested)) s_coalitionRequested;
-    mapping(address partyLeaderOne => mapping(address partyLeaderTwo => bool haveCoalition)) s_partiesAreInCoalition;
+    struct Subject {
+        string subjectName;
+        string[] memberParties;
+        address[] chairPeople;
+        uint256 votes;
+        uint8 electionNumber;
+        uint8 threshold;
+    }
 
-    PoliticalParty[] public s_politicalParties;
+    Party[] s_registeredParties;
+    Subject[] s_registeredSubjects;
+
+    uint8 internal s_registrationNumber;
+    bool public s_votingPhase;
+
+    mapping(address chairPerson => Party) public s_chairToParty;
+    mapping(bytes32 nameHash => Party) public s_hashToParty;
+    mapping(uint8 index => Party) public s_registrationNumberToParty;
+    mapping(bytes32 party1Hash => mapping(bytes32 party2Hash => bool)) public s_coalitionRequests;
 
     // #############################
     //            EVENTS
     // #############################
 
-    event PoliticalPartyRegistered(uint256 indexed electionNumber, address indexed partyLeader, string partyName);
-    event CoalitionRequested(address indexed requestor, address indexed requestee, uint256 indexed timestamp, string requestingParty, string requestedParty);
-    event RequestWithdrawn(string indexed withdrawingParty, string indexed withdrawedFrom, uint256 indexed timestamp);
+    event PartyRegistered(string indexed party, address indexed chair, uint indexed timestamp);
+    event CoalitionRequested(string indexed offeringParty, string indexed requestedParty, uint indexed timestamp);
+    event CoalitionRequestWithdrawn(string indexed offeringParty, string indexed requestedParty, uint indexed timestamp);
 
     // #############################
     //           MODIFIERS
@@ -57,74 +71,107 @@ contract VotingContract {
     //          FUNCTIONS
     // #############################
 
-    function registerParty(string calldata _partyName) external {
-        bytes32 nameHash = bytes32(keccak256(abi.encodePacked(_partyName)));
-        if (s_partyNameIsTaken[nameHash]) {
-            revert VotingContract__PartyNameIsAlreadyTaken();
+    function registerParty(string calldata partyName) external {
+        bytes32 nameHash = keccak256(abi.encodePacked(partyName));
+
+        if (s_registeredParties.length >= MAXIMUM_PARTIES_TO_REGISTER) {
+            revert VotingContract__MaximumPartiesHasBeenReached();
         }
 
-        s_partyNameIsTaken[nameHash] = true;
-        s_electionNumber++;
-        PoliticalParty memory party = PoliticalParty({partyName: _partyName, votes: 0, electionNumber: s_electionNumber, numberOfPartners: 0, partyLeader: msg.sender, coalitionPartners: ["", "", ""], isInCoalition: false});
-        s_politicalParties.push(party);
-        s_leaderToParty[msg.sender] = party;
+        if (s_hashToParty[nameHash].chairPerson != address(0)) {
+            revert VotingContract__NameIsAlreadyTaken();
+        }
 
-        emit PoliticalPartyRegistered(s_electionNumber, msg.sender, _partyName);
+        string[] memory emptyArray;
+        Party memory party = Party({
+            registrationNumber: s_registrationNumber,
+            chairPerson: msg.sender,
+            partyName: partyName,
+            partners: emptyArray
+        });
+        s_registeredParties.push(party);
+        s_registrationNumberToParty[s_registrationNumber] = party;
+        s_registrationNumber++;
+
+        emit PartyRegistered(partyName, msg.sender, block.timestamp);
     }
 
-    function offerCoalition(string calldata _coalitionPartyName) external {
-        if (s_leaderToParty[msg.sender].partyLeader == address(0)) {
+    function offerCoalition(string calldata coalitionPartyName) external {
+        if (s_chairToParty[msg.sender].chairPerson == address(0)) {
+            revert VotingContract__SenderIsNotAPartyChair();
+        }
+
+        string memory offeringPartyName = s_chairToParty[msg.sender].partyName;
+        bytes32 offeringNameHash = keccak256(abi.encodePacked(offeringPartyName));
+        bytes32 partnerNameHash = keccak256(abi.encodePacked(coalitionPartyName));
+        if (s_hashToParty[partnerNameHash].chairPerson == address(0)) {
             revert VotingContract__PartyDoesNotExist();
         }
 
-        if (s_nameToParty[_coalitionPartyName].partyLeader == address(0)) {
+        if (offeringNameHash == partnerNameHash) {
+            revert VotingContract__CannotCreateCoalitionWithItself();
+        }
+
+        if (s_coalitionRequests[offeringNameHash][partnerNameHash] || s_coalitionRequests[partnerNameHash][offeringNameHash]) {
+            revert VotingContract__CoalitionHasAlreadyBeenRequested();
+        }
+
+        if (s_votingPhase) {
+            revert VotingContract__VotingAlreadyStarted();
+        }
+
+        s_coalitionRequests[offeringNameHash][partnerNameHash] = true;
+
+        emit CoalitionRequested(offeringPartyName, coalitionPartyName, block.timestamp);
+    }
+
+    function withdrawCoalitionOffer(string calldata coalitionPartyName) external {
+        if (s_chairToParty[msg.sender].chairPerson == address(0)) {
+            revert VotingContract__SenderIsNotAPartyChair();
+        }
+
+        string memory offeringPartyName = s_chairToParty[msg.sender].partyName;
+        bytes32 offeringNameHash = keccak256(abi.encodePacked(offeringPartyName));
+        bytes32 partnerNameHash = keccak256(abi.encodePacked(coalitionPartyName));
+        if (s_hashToParty[partnerNameHash].chairPerson == address(0)) {
             revert VotingContract__PartyDoesNotExist();
         }
 
-        address coalitionPartyLeader = s_nameToParty[_coalitionPartyName].partyLeader;
-
-        if (s_coalitionRequested[coalitionPartyLeader][msg.sender] || s_coalitionRequested[msg.sender][coalitionPartyLeader]) {
-            revert VotingContract__CoalitionRequestAlreadyExists();
+        if (!s_coalitionRequests[offeringNameHash][partnerNameHash]) {
+            revert VotingContract__ColitionWasNotRequested();
         }
 
-        if (msg.sender == coalitionPartyLeader) {
-            revert VotingContract__CannotCreateCoalitionWithOwnParty();
+        if (s_votingPhase) {
+            revert VotingContract__VotingAlreadyStarted();
         }
 
-        s_coalitionRequested[msg.sender][coalitionPartyLeader] = true;
-        string memory requestingPartyName = s_leaderToParty[msg.sender].partyName;
-        string memory requestedPartyName = s_leaderToParty[coalitionPartyLeader].partyName;
+        s_coalitionRequests[offeringNameHash][partnerNameHash] = false;
 
-        emit CoalitionRequested(msg.sender, coalitionPartyLeader, block.timestamp, requestingPartyName, requestedPartyName);
+        emit CoalitionRequestWithdrawn(offeringPartyName, coalitionPartyName, block.timestamp);
     }
 
-    function withdrawCoalitionOffer(string calldata _coalitionPartyName) external {
-        address coalitionPartyLeader = s_nameToParty[_coalitionPartyName].partyLeader;
-
-        if (!s_coalitionRequested[msg.sender][coalitionPartyLeader]) {
-            revert VotingContract__ReuqestDoesNotExist();
+    function acceptCoalition(string calldata coalitionPartyName) external {
+        if (s_chairToParty[msg.sender].chairPerson == address(0)) {
+            revert VotingContract__SenderIsNotAPartyChair();
         }
 
-        s_coalitionRequested[msg.sender][coalitionPartyLeader] = false;
-        string memory partyName = s_leaderToParty[msg.sender].partyName;
+        if (s_votingPhase) {
+            revert VotingContract__VotingAlreadyStarted();
+        }
 
-        emit RequestWithdrawn(partyName, _coalitionPartyName, block.timestamp);
+        string memory ownPartyName = s_chairToParty[msg.sender].partyName;
+        bytes32 ownNameHash = keccak256(abi.encodePacked(ownPartyName));
+        bytes32 partnerNameHash = keccak256(abi.encodePacked(coalitionPartyName));
+        if (!s_coalitionRequests[partnerNameHash][ownNameHash]) {
+            revert VotingContract__CoalitionRequestDoesNotExist();
+        }
+
+
     }
 
-    function acceptCoalition(string calldata _coalitionPartyName) external {
-        // request exists (MDF-2)
-        // request is valid
-        // can be accepted only by party leader
-        // did not exceed the maximum of coalition members
-    }
+    function dismissCoalition() external {}
 
-    function dismissCoalition() external {
-        // should require approval from all party owners
-    }
-
-    function removeFromCoalition(string calldata _coalitionPartyName) external returns(bool) {
-        // requires owners of all other parties
-    }
+    function removeFromCoalition(string calldata _coalitionPartyName) external returns(bool) {}
 
     function leaveCoalition() external {}
 
@@ -148,17 +195,13 @@ contract VotingContract {
     //     VIEW & PURE FUNCTIONS
     // #############################
 
-    function getNumberOfRegisteredParties() public view returns(uint256) {
-    }
+    function getNumberOfRegisteredParties() public view returns(uint256) {}
 
-    function listRegisteredSubjects() public view {
-    }
+    function listRegisteredSubjects() public view {}
 
-    function showPoliticalPartyInformation(uint256 registrationNumber) public view {
-    }
+    function showPoliticalPartyInformation(uint256 registrationNumber) public view {}
 
-    function showSubjecInformation(uint256 electionNumber) public view {
-    }
+    function showSubjecInformation(uint256 electionNumber) public view {}
 
 
 
